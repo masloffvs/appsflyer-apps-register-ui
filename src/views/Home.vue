@@ -103,7 +103,9 @@ export default defineComponent({
       })
     },
 
-    checkAndRegisterApp(packageName: string) {      
+    checkAndRegisterApp(packageName: string) { 
+      if (packageName.trim() == "") { return }    
+
       if (!this.stateLoading) {
         this.stateLoading = true
 
