@@ -49,6 +49,13 @@
           </button>
         </div>
       </div>
+
+      <div class="sm:overflow-hidden mt-6">
+        <div class="cursor-pointer bg-gray-50 rounded-md px-3 py-2 mb-4" v-for="app in appsList" :key="app.package_name">
+          <h5 class="antialiased font-medium text-base mb-1">{{ app.package_name }}</h5>
+          <p class="text-gray-500 text-xs">{{ (new Date(app.created_at)).toLocaleString() }}</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -57,7 +64,8 @@
 import { defineComponent } from 'vue'
 import axios from "axios";
 import ErrorAlert from '../components/ErrorAlert.vue';
-import SuccessAlert from '../components/SuccessAlert.vue';
+import SuccessAlert from '../components/SuccessAlert.vue';// @ts-ignore
+import getBrowserFingerprint from 'get-browser-fingerprint';
 
 export default defineComponent({
   components: { ErrorAlert, SuccessAlert },
@@ -69,16 +77,38 @@ export default defineComponent({
      
       devKey: "",
 
-      stateLoading: false
+      appsList: [],
+
+      stateLoading: false,
+      fingerprint: getBrowserFingerprint()
     }
   },
   methods: {
+    fetchApplications(fingerprint: string) {
+      axios({
+        url: `https://jvm_metric.wfc.su/api/service/appsflyer/procedure/myApps?fingerprint=${fingerprint}`,
+        method: "GET"
+      }).then(e => {
+        this.appsList = e.data.list
+
+      }).catch(() => {
+         
+      })
+    },
+
+    fetchRegisterApplication(fingerprint: string, packageName: string) {
+      return axios({
+        url: `https://jvm_metric.wfc.su/api/service/appsflyer/procedure/registerApp?packageName=${packageName}&fingerprint=${fingerprint}`,
+        method: "GET"
+      })
+    },
+
     checkAndRegisterApp(packageName: string) {      
       if (!this.stateLoading) {
         this.stateLoading = true
 
         axios({
-          url: `http://appsflyer.wfc.su/api/appsflyer/app/registerAppInAppsflyer?packageName=${packageName}`,
+          url: `https://appsflyer.wfc.su/api/appsflyer/app/registerAppInAppsflyer?packageName=${packageName}`,
           method: "GET"
         }).then(e => {
           if (e.data.success == false) {
@@ -86,9 +116,15 @@ export default defineComponent({
           } else if (e.data.success == true) {
             this.successAlert = true
             this.devKey = e.data.devKey
+
+            this
+              .fetchRegisterApplication(this.fingerprint, packageName)
+              .then(() => {
+                this.fetchApplications(this.fingerprint)
+              })
           }
 
-        }).catch(e => {
+        }).catch(() => {
             this.errorAlert = true
         }).finally(() => {
           this.stateLoading = false
@@ -100,6 +136,9 @@ export default defineComponent({
       this.errorAlert = false
       this.successAlert = false
     }
+  },
+  mounted() {
+    this.fetchApplications(this.fingerprint)
   }
 })
 </script>
